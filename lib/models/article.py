@@ -1,37 +1,105 @@
+import sqlite3
 from lib.db.connection import get_connection
 
 class Article:
-    def __init__(self, id, title, author_id, magazine_id):
-        self.id = id
+    def __init__(self, title, author, magazine, id=None):
+        self._id = id
+        self._title = None
+        self._author = author
+        self._magazine = magazine
         self.title = title
-        self.author_id = author_id
-        self.magazine_id = magazine_id
 
-    @classmethod
-    def create(cls, title, author_id, magazine_id):
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO articles (title, author_id, magazine_id) VALUES (?, ?, ?)",
-            (title, author_id, magazine_id)
-        )
-        conn.commit()
-        article_id = cursor.lastrowid
-        conn.close()
-        return cls(article_id, title, author_id, magazine_id)
+    @property
+    def id(self):
+        return self._id
 
-    @classmethod
-    def find_by_author(cls, author_id):
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM articles WHERE author_id = ?", (author_id,))
-        rows = cursor.fetchall()
-        conn.close()
-        return [cls(row["id"], row["title"], row["author_id"], row["magazine_id"]) for row in rows]
+    @property
+    def title(self):
+        return self._title
 
+    @title.setter
+    def title(self, value):
+        if not value or not isinstance(value, str):
+            raise ValueError("Title must be a non-empty string")
+        self._title = value
+
+    @property
+    def author(self):
+        return self._author
+
+    @property
     def magazine(self):
-        from lib.models.magazine import Magazine 
-        return Magazine.find_by_id(self.magazine_id)
+        return self._magazine
 
-    def __repr__(self):
-        return f"<Article {self.title}>"
+    def save(self):
+        conn = get_connection()
+        try:
+            with conn:
+                cursor = conn.cursor()
+                if self._id:
+                    cursor.execute(
+                        "UPDATE articles SET title = ?, author_id = ?, magazine_id = ? WHERE id = ?",
+                        (self._title, self._author.id, self._magazine.id, self._id)
+                    )
+                else:
+                    cursor.execute(
+                        "INSERT INTO articles (title, author_id, magazine_id) VALUES (?, ?, ?)",
+                        (self._title, self._author.id, self._magazine.id)
+                    )
+                    self._id = cursor.lastrowid
+                conn.commit()
+                return self
+        finally:
+            conn.close()
+
+    @classmethod
+    def find_by_id(cls, id):
+        from .author import Author
+        from .magazine import Magazine
+        conn = get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT a.*, au.name as author_name, m.name as magazine_name, m.category
+                FROM articles a
+                JOIN authors au ON a.author_id = au.id
+                JOIN magazines m ON a.magazine_id = m.id
+                WHERE a.id = ?
+                """,
+                (id,)
+            )
+            row = cursor.fetchone()
+            if row:
+                author = Author(row['author_name'], row['author_id'])
+                magazine = Magazine(row['magazine_name'], row['category'], row['magazine_id'])
+                return cls(row['title'], author, magazine, row['id'])
+            return None
+        finally:
+            conn.close()
+
+    @classmethod
+    def find_by_title(cls, title):
+        from .author import Author
+        from .magazine import Magazine
+        conn = get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT a.*, au.name as author_name, m.name as magazine_name, m.category
+                FROM articles a
+                JOIN authors au ON a.author_id = au.id
+                JOIN magazines m ON a.magazine_id = m.id
+                WHERE a.title = ?
+                """,
+                (title,)
+            )
+            row = cursor.fetchone()
+            if row:
+                author = Author(row['author_name'], row['author_id'])
+                magazine = Magazine(row['magazine_name'], row['category'], row['magazine_id'])
+                return cls(row['title'], author, magazine, row['id'])
+            return None
+        finally:
+            conn.close()

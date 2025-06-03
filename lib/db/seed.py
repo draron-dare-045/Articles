@@ -1,22 +1,47 @@
+import sqlite3
 from lib.models.author import Author
 from lib.models.magazine import Magazine
 from lib.models.article import Article
 
-def seed_data():
-    author1 = Author.create("Alice Walker")
-    author2 = Author.create("Chinua Achebe")
-    author3 = Author.create("Ngugi wa Thiong'o")
+def get_connection():
+    return sqlite3.connect('database.db')
 
-    mag1 = Magazine.create("Literary Digest", "Literature")
-    mag2 = Magazine.create("African Voices", "Culture")
+def seed_database():
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM articles")
+    cursor.execute("DELETE FROM authors")
+    cursor.execute("DELETE FROM magazines")
+    conn.commit()
+    conn.close()
 
-    Article.create("Why I Write", author1.id, mag1.id)
-    Article.create("Roots and Routes", author1.id, mag2.id)
-    Article.create("The Storyteller", author2.id, mag2.id)
-    Article.create("Language as Resistance", author3.id, mag2.id)
-    Article.create("The River Between", author3.id, mag2.id)
+    authors = [
+        Author("John Doe"),
+        Author("Jane Smith"),
+        Author("Bob Johnson")
+    ]
+    for author in authors:
+        author.save()
 
-    print("data created successfully:")
+    magazines = [
+        Magazine("Tech Today", "Technology"),
+        Magazine("Science Weekly", "Science"),
+        Magazine("Business Insights", "Business")
+    ]
+    for magazine in magazines:
+        magazine.save()
 
-if __name__ == "__main__":
-    seed_data()
+    articles = [
+        Article("The Future of AI", authors[0].id, magazines[0].id),
+        Article("Quantum Computing", authors[1].id, magazines[1].id),
+        Article("Market Trends", authors[2].id, magazines[2].id),
+        Article("Python Programming", authors[0].id, magazines[0].id),
+        Article("Space Exploration", authors[1].id, magazines[1].id),
+        Article("Startup Funding", authors[2].id, magazines[2].id),
+        Article("Machine Learning", authors[0].id, magazines[0].id),
+        Article("Genetic Engineering", authors[1].id, magazines[1].id)
+    ]
+    for article in articles:
+        article.save()
+
+    print("Database seeded successfully!")

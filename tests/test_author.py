@@ -23,17 +23,26 @@ def setup_database():
     finally:
         conn.close()
 
-def test_article_validation():
-    author = Author("John Doe")
-    magazine = Magazine("Tech Today", "Technology")
+def test_author_validation():
     with pytest.raises(ValueError):
-        Article("", author, magazine)
+        Author("")
+    with pytest.raises(ValueError):
+        Author(None)
 
-def test_article_save(setup_database):
+def test_author_save(setup_database):
+    author = Author("Jane Smith").save()
+    assert author.id is not None
+    assert author.name == "Jane Smith"
+
+def test_author_find_by_id(setup_database):
+    author = Author.find_by_id(setup_database["author_id"])
+    assert author is not None
+    assert author.name == "John Doe"
+
+def test_author_articles(setup_database):
     author = Author.find_by_id(setup_database["author_id"])
     magazine = Magazine.find_by_id(setup_database["magazine_id"])
-    article = Article("Test Article", author, magazine).save()
-    assert article.id is not None
-    assert article.title == "Test Article"
-    assert article.author.id == author.id
-    assert article.magazine.id == magazine.id
+    Article("Test Article", author, magazine).save()
+    articles = author.articles()
+    assert len(articles) == 1
+    assert articles[0]['title'] == "Test Article"
